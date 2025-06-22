@@ -1,0 +1,31 @@
+dataSources:
+  ds:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://localhost:3306/auth_demo
+    username: root
+    password: zhanghy0330
+
+rules:
+  - !SHARDING
+    tables:
+      user:
+        actualDataNodes: ds.users_copy${0..3}
+        tableStrategy:
+          standard:
+            shardingColumn: user_id
+            shardingAlgorithmName: user_inline
+    shardingAlgorithms:
+      user_inline:
+        type: INLINE
+        props:
+          algorithm-expression: users_copy${user_id % 4}
+    keyGenerators:  # 定义 Snowflake 算法
+      snowflake:
+        type: SNOWFLAKE
+        props:
+          worker-id: 123
+          max-tolerate-time-difference-milliseconds: 0
+props:
+  sql-show: true  # 打印分片SQL
+  query-with-cipher-column: true

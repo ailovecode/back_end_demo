@@ -1,0 +1,119 @@
+server:
+  port: 8808
+
+
+#spring:
+#  shardingsphere:
+#    datasource:
+#      names: master
+#      master:
+#        dataSourceClassName: edu.zut.entity.User
+#        driverClassName: com.mysql.cj.jdbc.Driver
+#        jdbcUrl: jdbc:mysql://localhost:3306/auth_demo
+#        username: root
+#        password: zhanghy0330
+#    sharding:
+#      tables:
+#        users_copy:
+#          actual-data-nodes: master.users_copy_${0..3}
+#          table-strategy:
+#            inline:
+#              sharding-column: user_id
+#              algorithm-expression: users_copy_${user_id.hashCode() % 4}
+#    props:
+#      sql-show: true
+#  main:
+#    allow-bean-definition-overriding: true
+
+#spring:
+#  application:
+#    name: user-service
+#  datasource:
+#    url: jdbc:mysql://localhost:3306/auth_demo
+#    username: root
+#    password: zhanghy0330
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#  cloud:
+#    nacos:
+#      discovery:
+#        server-addr: localhost:8848 #这里是nacos也就是注册中心的ip和端口。
+#        group: tony-group
+
+spring:
+  application:
+    name: user-service
+  datasource:
+    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+    url: jdbc:shardingsphere:classpath:sharding.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848 #这里是nacos也就是注册中心的ip和端口。
+        group: tony-group
+
+
+rocketmq:
+  name-server: 127.0.0.1:9876
+#  consumer:
+#    group: logging-consumer
+  producer:
+    group: logging-producer
+    retry-next-server: true
+    retry-times-when-send-async-failed: 2 #异步消息发送失败重试的次数
+
+#seata:
+#  enabled: true
+##  enable-auto-data-source-proxy: true
+#  data-source-proxy-mode: AT
+#  application-id: ${spring.application.name}
+#
+#  tx-service-group: default_tx_group
+#  config:
+#    type: nacos
+#    nacos:
+#      serverAddr: 127.0.0.1:8848
+#      group: SEATA_GROUP
+#      dataId: seataServer.properties
+#      namespace: fa2bb6bd-eea5-4cf5-aee1-89df175ebc56
+#  registry:
+#    type: nacos
+#    nacos:
+#      serverAddr: 127.0.0.1:8848
+#      group: SEATA_GROUP
+#      dataId: seataServer.properties
+#      namespace: fa2bb6bd-eea5-4cf5-aee1-89df175ebc56
+#  service:
+#    v-group-mapping:
+#      default_tx_group: default
+
+service-url:
+  nacos-user-service: http://127.0.0.1:8080
+springfox:
+  documentation:
+    enabled: true
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+
+# knife4j 配置
+knife4j:
+  enable: true
+  #  production: true # 仅在处于生产环境时开启
+  openapi:
+    title: user-service
+    description: "用户服务"
+    email: xiaoyu208h@qq.com
+    concat: xiaoyu
+    version: v4.0
+    license: Apache 2.0
+    license-url: https://stackoverflow.com/
+    terms-of-service-url: https://stackoverflow.com/
+    group:
+      test1:
+        group-name: userPort
+        api-rule: package
+        api-rule-resources:
+          - edu.zut.controller
