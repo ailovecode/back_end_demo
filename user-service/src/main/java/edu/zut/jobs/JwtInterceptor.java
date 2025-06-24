@@ -1,6 +1,8 @@
 package edu.zut.jobs;
 
+import edu.zut.common.ErrorCode;
 import edu.zut.entity.vo.UserVo;
+import edu.zut.exception.BusinessException;
 import edu.zut.util.JWTUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,9 +28,9 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         String token = req.getHeader("Authorization");
         if(token == null) {
-            throw new IllegalArgumentException("没有权限，请先登录！");
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "没有权限，请先登录！");
         }
-        if (token != null && token.startsWith("Bearer ")) {
+        if (token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
         UserVo userVo = JWTUtils.parseToken(token);

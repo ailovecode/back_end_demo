@@ -2,14 +2,16 @@ package edu.zut.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
-import edu.zut.entity.Result;
+import edu.zut.common.BaseResponse;
+import edu.zut.common.ErrorCode;
+import edu.zut.common.ResultUtil;
 import edu.zut.entity.RoleEnum;
 import edu.zut.entity.User;
 import edu.zut.entity.request.UserLogin;
 import edu.zut.entity.request.UserRegister;
 import edu.zut.entity.vo.PageVo;
 import edu.zut.entity.vo.UserVo;
-import edu.zut.service.MQProducerService;
+import edu.zut.exception.BusinessException;
 import edu.zut.service.PermissionService;
 import edu.zut.service.UserService;
 import edu.zut.util.JWTUtils;
@@ -37,10 +39,10 @@ public class UserController {
     private PermissionService permissionService;
 
     @PostMapping("/user/register")
-    public Result<Integer> userRegister(@RequestBody UserRegister userRegisterRequest, HttpServletRequest request) {
+    public BaseResponse<Boolean> userRegister(@RequestBody UserRegister userRegisterRequest, HttpServletRequest request) {
         // 参数判空
         if (userRegisterRequest == null) {
-            return Result.failed("注册信息为空!");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"注册信息为空!");
         }
 
         String username = userRegisterRequest.getUsername();
@@ -48,25 +50,25 @@ public class UserController {
         String userPhone = userRegisterRequest.getPhone();
         String userEmail = userRegisterRequest.getEmail();
         if (StringUtils.isAnyBlank(username, userPassword, userPhone, userEmail)) {
-            return Result.failed("注册信息参数为空!");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"注册信息参数为空!");
         }
         Boolean result = userService.userRegister(userRegisterRequest, request);
         if(!result) {
-            return Result.failed("注册失败！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"注册失败！");
         }
-        return Result.success("注册成功",1);
+        return ResultUtil.success(result);
     }
 
     @PostMapping("/user/login")
-    public Result<String> userLogin(@RequestBody UserLogin userLoginRequest, HttpServletRequest request) {
+    public BaseResponse<String> userLogin(@RequestBody UserLogin userLoginRequest, HttpServletRequest request) {
         if (userLoginRequest == null) {
-            return Result.failed("请求参数为空！");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"请求参数为空！");
         }
 
         // 校验账号密码
         User result = userService.userLogin(userLoginRequest, request);
         if(result == null) {
-            return Result.failed("登录失败，用户名或密码错误！");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR ,"登录失败，用户名或密码错误！");
         }
 
         // 获取用户角色码
@@ -75,18 +77,18 @@ public class UserController {
         // 生成Token
         String token = JWTUtils.generateToken(result.getUserId(),userRoleCode);
 
-        return Result.success(token);
+        return ResultUtil.success(token);
     }
 
     @GetMapping("/users")
-    public Result<Page<User>> getPagingUserList(@Valid PageVo pageVo, HttpServletRequest req) {
+    public BaseResponse<Page<User>> getPagingUserList(@Valid PageVo pageVo, HttpServletRequest req) {
         if(pageVo == null) {
-            return Result.failed("请求参数为空！");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"请求参数为空！");
         }
         // 1. 鉴权
         UserVo userVo = (UserVo) req.getAttribute("userVo");
         if(userVo == null) {
-            return Result.failed("请先登录！");
+            throw new BusinessException(ErrorCode.NOT_LOGIN ,"请先登录！");
         }
         RoleEnum userRole = userService.getRole(userVo);
         log.info("登录用户 - Role:{}", userRole);
@@ -107,29 +109,29 @@ public class UserController {
                 resultList = userService.getAllList(pageVo, userVo.getUserId(), req);
                 break;
             default:
-                throw new IllegalArgumentException("获取用户角色错误！");
+                throw new BusinessException(ErrorCode.REQUEST_ERROR, "获取用户角色错误！");
         }
         if(resultList == null || resultList.getSize() == 0) {
-            return Result.failed("未查到用户信息！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"未查到用户信息！");
         }
-        return Result.success("查询用户成功", resultList);
+        return ResultUtil.success(resultList);
     }
 
     @GetMapping("/user/{userId}")
-    public Result<User> getUser(@PathVariable("userId") Long userId, HttpServletRequest req) {
+    public BaseResponse<User> getUser(@PathVariable("userId") Long userId, HttpServletRequest req) {
         if(userId == null) {
-            return Result.failed("请求参数为空！");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"请求参数为空！");
         }
         // 判断用户是否存在
         User findUser = userService.getUserById(userId);
         if(findUser == null) {
-            return Result.failed("该用户不存在！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"该用户不存在！");
         }
 
         // 1. 校验登录用户权限
         UserVo userVo = (UserVo) req.getAttribute("userVo");
         if(userVo == null) {
-            return Result.failed("请先登录！");
+            throw new BusinessException(ErrorCode.NOT_LOGIN ,"请先登录！");
         }
         RoleEnum userRole = userService.getRole(userVo);
         log.info("登录用户 - Role : {}", userRole);
@@ -137,7 +139,7 @@ public class UserController {
         // 2. 判断查看用户权限
         Gson gson = new Gson();
         String userRoleCode = permissionService.getUserRoleCode(userId);
-        Result result = gson.fromJson(userRoleCode, Result.class);
+        BaseResponse result = gson.fromJson(userRoleCode, BaseResponse.class);
         userRoleCode = (String) result.getData();
         RoleEnum goalRole = RoleEnum.getByCode(userRoleCode);
         log.info("传入用户 - Role : {}", goalRole);
@@ -158,31 +160,31 @@ public class UserController {
         }
         // 其他情况，或是没有权限
         else {
-            return Result.failed("没有权限查此用户！");
+            throw new BusinessException(ErrorCode.NO_AUTH ,"没有权限查此用户！");
         }
 
         // 未查到
         if(user == null) {
-            return Result.failed("获取该用户信息失败！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"获取该用户信息失败！");
         }
-        return Result.success("查询成功！", user);
+        return ResultUtil.success(user);
     }
 
     @PostMapping("/user/{userId}")
-    public Result<Integer> updateUser (@PathVariable("userId") Long userId, @RequestBody UserRegister newUser, HttpServletRequest req) {
+    public BaseResponse<Integer> updateUser (@PathVariable("userId") Long userId, @RequestBody UserRegister newUser, HttpServletRequest req) {
         if(userId == null || newUser == null) {
-            return Result.failed("请求参数为空！");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"请求参数为空！");
         }
         // 判断用户是否存在
         User user = userService.getUserById(userId);
         if(user == null) {
-            return Result.failed("该用户不存在！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"该用户不存在！");
         }
 
         // 1. 校验登录用户权限
         UserVo userVo = (UserVo) req.getAttribute("userVo");
         if(userVo == null) {
-            return Result.failed("请先登录 ！");
+            throw new BusinessException(ErrorCode.NOT_LOGIN ,"请先登录 ！");
         }
         RoleEnum userRole = userService.getRole(userVo);
         log.info("登录用户 - Role : {}", userRole);
@@ -190,7 +192,7 @@ public class UserController {
         // 2. 判断查看用户权限
         Gson gson = new Gson();
         String userRoleCode = permissionService.getUserRoleCode(userId);
-        Result JsonResult = gson.fromJson(userRoleCode, Result.class);
+        BaseResponse JsonResult = gson.fromJson(userRoleCode, BaseResponse.class);
         userRoleCode = (String) JsonResult.getData();
         RoleEnum goalRole = RoleEnum.getByCode(userRoleCode);
         log.info("传入用户 - Role : {}", goalRole);
@@ -210,22 +212,22 @@ public class UserController {
             result = userService.updateUser(userId, newUser, req);
         }
         else {
-            return Result.failed("没有权限更改此用户信息！");
+            throw new BusinessException(ErrorCode.NO_AUTH ,"没有权限更改此用户信息！");
         }
 
         if(result < 1) {
-            return Result.failed("更新失败!");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"更新失败!");
         }
-        return Result.success("更新成功！", result);
+        return ResultUtil.success(result);
     }
 
     @PostMapping("/user/reset-password")
-    public Result<Integer> resetPassword(@RequestParam("newPassword") String newPassword, HttpServletRequest req) {
+    public BaseResponse<Integer> resetPassword(@RequestParam("newPassword") String newPassword, HttpServletRequest req) {
         if("".equals(newPassword) || newPassword.isEmpty()) {
-            return Result.failed("新密码为空！");
+            throw new BusinessException(ErrorCode.NULL_ERROR ,"新密码为空！");
         }
         if (newPassword.length() < 6 || newPassword.length() > 20) {
-            return Result.failed("密码长度必须在6到20之间！");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR ,"密码长度必须在6到20之间！");
         }
 
         // 1. 鉴权
@@ -249,12 +251,12 @@ public class UserController {
                 result = userService.resetAllPassword(newPassword, userVo.getUserId(), req);
                 break;
             default:
-                throw new IllegalArgumentException("获取用户角色错误！");
+                throw new BusinessException(ErrorCode.REQUEST_ERROR, "获取用户角色错误！");
         }
         if(result < 1) {
-            return Result.failed("重置失败，请检查数据");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR ,"重置失败，请检查数据");
         }
-        return Result.success("重置密码成功！", result);
+        return ResultUtil.success(result);
     }
 
 }

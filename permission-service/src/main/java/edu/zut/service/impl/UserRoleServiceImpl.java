@@ -3,8 +3,10 @@ package edu.zut.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import edu.zut.common.ErrorCode;
 import edu.zut.entity.RoleConstants;
 import edu.zut.entity.UserRole;
+import edu.zut.exception.BusinessException;
 import edu.zut.mapper.RoleMapper;
 import edu.zut.service.RoleService;
 import edu.zut.service.UserRoleService;
@@ -65,7 +67,7 @@ public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole>
         // 联表查找
         String result = userRoleMapper.selectRoleCode(userId);
         if(result == null) {
-            throw new IllegalArgumentException("未查找到用户角色信息");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"未查找到用户角色信息");
         }
         return result;
     }
@@ -83,7 +85,7 @@ public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole>
         UserRole userRole = this.getOne(queryUserRoleWrapper);
         if(userRole == null) {
             log.warn("未找到 {} 用户的角色信息", userId);
-            throw new IllegalArgumentException("未查到该用户！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"未查到该用户！");
         }
         return userRole.getRoleId();
     }
@@ -101,7 +103,7 @@ public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole>
         Integer result = userRoleMapper.update(updateUserRoleWrapper);
         if(result <= 0) {
             log.warn("更新为管理员错误！");
-            throw new IllegalArgumentException("更新为管理员错误！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"更新为管理员错误！");
         }
         return result;
     }
@@ -119,7 +121,7 @@ public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole>
         Integer result = userRoleMapper.update(updateUserRoleWrapper);
         if(result <= 0) {
             log.warn("更新为普通用户错误！");
-            throw new IllegalArgumentException("更新为普通用户错误！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR ,"更新为普通用户错误！");
         }
         return result;
     }

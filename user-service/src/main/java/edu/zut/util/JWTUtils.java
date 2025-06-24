@@ -5,7 +5,9 @@ import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import edu.zut.common.ErrorCode;
 import edu.zut.entity.vo.UserVo;
+import edu.zut.exception.BusinessException;
 
 import java.util.Date;
 
@@ -39,7 +41,8 @@ public class JWTUtils {
 
             return new UserVo(userId, role);
         } catch (JWTVerificationException | NumberFormatException e) {
-            return null; // token 无效或过期
+            // token 无效或过期
+            throw new BusinessException(ErrorCode.NO_AUTH, "Token 无效或过期！");
         }
     }
 }

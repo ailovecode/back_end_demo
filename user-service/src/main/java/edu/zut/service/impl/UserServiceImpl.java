@@ -8,14 +8,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.yulichang.wrapper.MPJLambdaWrapper;
 import com.google.gson.Gson;
+import edu.zut.common.BaseResponse;
+import edu.zut.common.ErrorCode;
 import edu.zut.entity.OperationLog;
-import edu.zut.entity.Result;
 import edu.zut.entity.RoleEnum;
 import edu.zut.entity.User;
 import edu.zut.entity.request.UserLogin;
 import edu.zut.entity.request.UserRegister;
 import edu.zut.entity.vo.PageVo;
 import edu.zut.entity.vo.UserVo;
+import edu.zut.exception.BusinessException;
 import edu.zut.service.MQProducerService;
 import edu.zut.service.PermissionService;
 import edu.zut.service.UserService;
@@ -25,6 +27,7 @@ import edu.zut.util.SnowflakeUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.seata.spring.annotation.GlobalTransactional;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -63,19 +66,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 校验用户注册信息是否完善
         if (user.getUsername() == null || user.getUsername().isEmpty()) {
             log.warn("注册失败 – 用户名为空");
-            throw new IllegalArgumentException("用户名不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "用户名不能为空");
         }
         if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             log.warn("注册失败 – 邮箱格式不正确: email={}", user.getEmail());
-            throw new IllegalArgumentException("邮箱格式不正确");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "邮箱格式不正确");
         }
         if (user.getPassword().length() < 6 || user.getPassword().length() > 20) {
             log.warn("注册失败 – 密码长度不合法: length={}", user.getPassword().length());
-            throw new IllegalArgumentException("密码长度必须在6到20之间");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "密码长度必须在6到20之间");
         }
         if (user.getPhone().length() != 11) {
             log.warn("注册失败 – 手机号格式不正确: phone={}", user.getPhone());
-            throw new IllegalArgumentException("手机号格式不对");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "手机号格式不对");
         }
 
         // 设置日志对象
@@ -89,7 +92,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         User one = this.getOne(queryWrapper);
         if (one != null) {
             log.warn("注册失败 – 用户已存在: username={}", user.getUsername());
-            throw new IllegalArgumentException("该用户已经注册过了！");
+            throw new BusinessException(ErrorCode.REQUEST_ERROR , "该用户已经注册过了！");
         }
 
         // 注册逻辑
@@ -102,16 +105,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         newUser.setPhone(user.getPhone());
         newUser.setPassword(md5UserPassword);
         newUser.setGmtCreate(new Date());
+
         boolean result = this.save(newUser);
 
         // 设置权限
         log.info("开始绑定默认角色给用户 userId={}", userId);
         String json = permissionService.bindDefaultRole(userId);
-        Result obj = JacksonUtils.toObj(json, Result.class);
+        BaseResponse obj = JacksonUtils.toObj(json, BaseResponse.class);
         log.info("权限绑定结果: {}", json);
         if (obj.getCode() == 500) {
             log.error("角色绑定失败 – userId={}, response={}", userId, json);
-            throw new IllegalArgumentException("用户角色绑定失败！");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "用户角色绑定失败！");
         }
         if (!result) {
             log.error("注册失败 – 用户保存失败, userId={}", userId);
@@ -147,12 +151,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 校验用户登录信息
         if (userLoginRequest.getUsername() == null || userLoginRequest.getUsername().isEmpty()) {
             log.warn("登录失败 – 用户名为空");
-            throw new IllegalArgumentException("用户名不能为空");
+            throw new BusinessException(ErrorCode.NULL_ERROR , "用户名不能为空");
         }
         if (userLoginRequest.getPassword().length() < 6 || userLoginRequest.getPassword().length() > 20) {
             log.warn("登录失败 – 密码长度不合法: length={}",
                     userLoginRequest.getPassword().length());
-            throw new IllegalArgumentException("密码长度必须在6到20之间");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度必须在6到20之间");
         }
 
         // 构建日志消息常量部分
@@ -304,7 +308,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      public RoleEnum getRole(UserVo userVo) {
         log.info("解析 JSON 获取用户角色");
         String roleResponse = userVo.getRole();
-        Result roleResult = JacksonUtils.toObj(roleResponse, Result.class);
+        BaseResponse roleResult = JacksonUtils.toObj(roleResponse, BaseResponse.class);
         String userRole = (String) roleResult.getData();
         RoleEnum role = RoleEnum.getByCode(userRole);
         return role;
@@ -343,21 +347,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (!newUser.getEmail().isEmpty()) {
             if (!newUser.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
                 log.warn("邮箱格式不正确: {}", newUser.getEmail());
-                throw new IllegalArgumentException("邮箱格式不正确");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR , "邮箱格式不正确");
             }
             uw.set("email", newUser.getEmail());
         }
         if (!newUser.getPhone().isEmpty()) {
             if (newUser.getPhone().length() != 11) {
                 log.warn("手机号格式不正确: {}", newUser.getPhone());
-                throw new IllegalArgumentException("手机号格式不对");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR , "手机号格式不对");
             }
             uw.set("phone", newUser.getPhone());
         }
         if (!newUser.getPassword().isEmpty()) {
             if (newUser.getPassword().length() < 6 || newUser.getPassword().length() > 20) {
                 log.warn("密码长度不合法: {}", newUser.getPassword().length());
-                throw new IllegalArgumentException("密码长度必须在6到20之间");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度必须在6到20之间");
             }
             String md5 = PasswordEncode.encode(newUser.getPassword());
             uw.set("password", md5);
@@ -495,9 +499,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     private List<Long> getUserIdsByRPC(Integer roleId) {
         String jsonResult = permissionService.getUserByRoleId(roleId);
-        Result response = JacksonUtils.toObj(jsonResult, Result.class);
+        BaseResponse response = JacksonUtils.toObj(jsonResult, BaseResponse.class);
         if(response.getCode() == 500) {
-            throw new IllegalArgumentException(response.getMessage());
+            throw new BusinessException(ErrorCode.REQUEST_ERROR , response.getMessage());
         }
         List<Long> userIds = (List<Long>) response.getData();
         return userIds;
