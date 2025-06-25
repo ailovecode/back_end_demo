@@ -50,6 +50,12 @@ spring:
       discovery:
         server-addr: localhost:8848 #这里是nacos也就是注册中心的ip和端口。
         group: tony-group
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 1
+
 
 
 rocketmq:

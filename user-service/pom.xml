@@ -18,11 +18,33 @@
 
     <dependencies>
 
-        <!-- RocketMQ -->
+        <!-- redis -->
         <dependency>
-            <groupId>org.apache.rocketmq</groupId>
-            <artifactId>rocketmq-spring-boot-starter</artifactId>
-            <version>2.3.1</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+        <!-- redis 连接池  -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-data-redis</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+
+        <!--    整合 shardingsphere 进行分库分表    -->
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc</artifactId>
+            <version>5.5.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-transaction-base-seata-at</artifactId>
+            <version>5.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
@@ -46,6 +68,18 @@
                 </exclusion>
             </exclusions>
         </dependency>-->
+
+        <!-- RocketMQ -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <version>2.3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+            <version>5.3.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -85,13 +119,6 @@
 <!--            <artifactId>antlr4-runtime</artifactId>-->
 <!--            <version>4.13.1</version>-->
 <!--        </dependency>-->
-
-        <!--    整合 shardingsphere 进行分库分表    -->
-        <dependency>
-            <groupId>org.apache.shardingsphere</groupId>
-            <artifactId>shardingsphere-jdbc</artifactId>
-            <version>5.5.2</version>
-        </dependency>
 
         <dependency>
             <groupId>junit</groupId>

@@ -53,8 +53,8 @@ public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole>
             // 否则设为 普通用户
             userRole.setRoleId(RoleConstants.USER);
         }
-        int insert = userRoleMapper.insert(userRole);
-        return insert;
+
+        return userRoleMapper.insert(userRole);
     }
 
     /**

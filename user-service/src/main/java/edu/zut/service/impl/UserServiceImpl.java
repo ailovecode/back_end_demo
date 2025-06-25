@@ -10,6 +10,7 @@ import com.github.yulichang.wrapper.MPJLambdaWrapper;
 import com.google.gson.Gson;
 import edu.zut.common.BaseResponse;
 import edu.zut.common.ErrorCode;
+import edu.zut.config.ShardingConfig;
 import edu.zut.entity.OperationLog;
 import edu.zut.entity.RoleEnum;
 import edu.zut.entity.User;
@@ -24,12 +25,17 @@ import edu.zut.service.UserService;
 import edu.zut.mapper.UserMapper;
 import edu.zut.util.PasswordEncode;
 import edu.zut.util.SnowflakeUtils;
+import io.seata.spring.annotation.GlobalTransactional;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.seata.spring.annotation.GlobalTransactional;
+import org.apache.shardingsphere.transaction.api.TransactionType;
+import org.hibernate.jpa.internal.util.PersistenceUnitTransactionTypeHelper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+
+import java.sql.PreparedStatement;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +68,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public Boolean userRegister(UserRegister user, HttpServletRequest request) {
-
         // 校验用户注册信息是否完善
         if (user.getUsername() == null || user.getUsername().isEmpty()) {
             log.warn("注册失败 – 用户名为空");
@@ -107,13 +112,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         newUser.setGmtCreate(new Date());
 
         boolean result = this.save(newUser);
+        if (!result) {
+            log.error("注册失败 – 用户保存失败, userId={}", userId);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR , "注册用户失败！");
+        }
 
         // 设置权限
         log.info("开始绑定默认角色给用户 userId={}", userId);
         String json = permissionService.bindDefaultRole(userId);
         BaseResponse obj = JacksonUtils.toObj(json, BaseResponse.class);
         log.info("权限绑定结果: {}", json);
-        if (obj.getCode() == 500) {
+        if (obj.getCode() != ErrorCode.SUCCESS.getCode()) {
+            // 手动执行注册用户的删除
+            int count = userMapper.deleteById(userId);
+            log.info("注册角色删除成功 - userId={}, count={}", userId, count);
             log.error("角色绑定失败 – userId={}, response={}", userId, json);
             throw new BusinessException(ErrorCode.PARAMS_ERROR , "用户角色绑定失败！");
         }
@@ -174,6 +186,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (user == null) {
             log.warn("登录失败 – 用户名或密码错误: username={}",
                     userLoginRequest.getUsername());
+            msg.setDetail(new Gson().toJson(Map.of("Failed", "当前 ip 登录操作出现错误！")));
+            mqProducerService.sendAsync(msg);
+            throw new BusinessException(ErrorCode.REQUEST_ERROR, "用户名或密码错误！");
         } else {
             msg.setUserId(user.getUserId());
             msg.setDetail(new Gson().toJson(Map.of("success", "用户登录成功")));

@@ -11,6 +11,10 @@ public class ResultUtil {
 
     }
 
+    public static <T> BaseResponse<T> success() {
+        return new BaseResponse<>(2000,null,"响应成功！");
+    }
+
     public static <T> BaseResponse<T> success(T data) {
         return new BaseResponse<>(2000,data,"响应成功！");
     }

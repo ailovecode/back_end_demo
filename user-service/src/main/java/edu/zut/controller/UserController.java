@@ -14,11 +14,13 @@ import edu.zut.entity.vo.UserVo;
 import edu.zut.exception.BusinessException;
 import edu.zut.service.PermissionService;
 import edu.zut.service.UserService;
+import edu.zut.util.JWTBlackList;
 import edu.zut.util.JWTUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,6 +39,12 @@ public class UserController {
 
     @Resource
     private PermissionService permissionService;
+
+    private final JWTBlackList jwtBlackList;
+
+    public UserController(JWTBlackList jwtBlackList) {
+        this.jwtBlackList = jwtBlackList;
+    }
 
     @PostMapping("/user/register")
     public BaseResponse<Boolean> userRegister(@RequestBody UserRegister userRegisterRequest, HttpServletRequest request) {
@@ -78,6 +86,22 @@ public class UserController {
         String token = JWTUtils.generateToken(result.getUserId(),userRoleCode);
 
         return ResultUtil.success(token);
+    }
+
+    /**
+     * 用户登出
+     *
+     * @param token
+     * @param request
+     * @return
+     */
+    @PostMapping("/user/logout")
+    public BaseResponse<String> logout(@RequestHeader("Authorization") String token, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwtBlackList.add(authHeader.substring(7));
+        }
+        return ResultUtil.success("Logged out");
     }
 
     @GetMapping("/users")
